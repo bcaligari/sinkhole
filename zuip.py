@@ -3,8 +3,28 @@ import argparse
 import datetime
 import html
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
+
+def semver_sort_key(version_str):
+    """
+    Split a version string into a tuple of components for semantic sorting.
+    If a component is purely numeric, it's compared numerically.
+    If it's a mix of numeric and alpha, it's compared alphanumerically as a string.
+    """
+    if not version_str:
+        return ()
+    parts = re.split(r'[\.\-_+]', version_str)
+    key = []
+    for part in parts:
+        if not part:
+            continue
+        if part.isdigit():
+            key.append((0, int(part)))
+        else:
+            key.append((1, part.lower()))
+    return tuple(key)
 
 def find_child(elem, tag_name):
     """Find the first direct child element with the matching local tag name (ignoring namespace)."""
@@ -301,6 +321,9 @@ def main():
                     'patch_id': patch_id
                 })
 
+    # Sort rows first by version, then by release (semantically)
+    rows.sort(key=lambda r: (semver_sort_key(r['version']), semver_sort_key(r['release'])))
+
     # Render as HTML details if --details is specified
     if args.details:
         print("<!DOCTYPE html>")
@@ -349,11 +372,12 @@ def main():
 
         # Details Section for each unique patch
         seen_update_ids = set()
-        for upd in matching_updates.values():
-            upd_id = upd['id']
+        for row in rows:
+            upd_id = row['patch_id']
             if upd_id in seen_update_ids:
                 continue
             seen_update_ids.add(upd_id)
+            upd = matching_updates[upd_id]
 
             formatted_date = format_issued_date(upd['issued_date'])
             escaped_id = html.escape(upd_id)
@@ -363,8 +387,10 @@ def main():
             escaped_severity = html.escape(upd['severity'])
             escaped_date_str = html.escape(formatted_date)
 
-            # Get unique version-release combinations for matching packages under this update
-            pkg_ver_rels = sorted(list(set(f"{pkg['version']}-{pkg['release']}" for pkg in upd['packages'])))
+            # Get unique version-release combinations for matching packages under this update (sorted semantically)
+            pkg_ver_rels_raw = list(set((pkg['version'], pkg['release']) for pkg in upd['packages']))
+            pkg_ver_rels_raw.sort(key=lambda item: (semver_sort_key(item[0]), semver_sort_key(item[1])))
+            pkg_ver_rels = [f"{version}-{release}" for version, release in pkg_ver_rels_raw]
             ver_rel_suffix = html.escape(", ".join(pkg_ver_rels))
 
             print(f"<div class=\"patch-block\" id=\"{escaped_id}\">")

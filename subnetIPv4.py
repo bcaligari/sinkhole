@@ -150,12 +150,17 @@ def main():
                 f"CIDR: /{split_prefix}",
                 "",
                 f"Addressable IPs: {sub_addressable}",
-                "",
-                ""
+                f"First subnet: {subnets[0].network_address}",
+                f"Last subnet: {subnets[-1].network_address}"
             ]
 
-            # Pad left-hand side lines dynamically to align columns
-            max_left_len = max(len(line) for line in left_lines)
+            # Pad left-hand side and right-hand side lines dynamically to align columns
+            max_left_len = max(len("Primary network"), max(len(line) for line in left_lines))
+            max_right_len = max(len("Subnets"), max(len(line) for line in right_lines))
+
+            # Print column headers and separator line
+            print(f"{'Primary network'.ljust(max_left_len)} | Subnets")
+            print(f"{'-' * max_left_len} | {'-' * max_right_len}")
 
             for left, right in zip(left_lines, right_lines):
                 padded_left = left.ljust(max_left_len)
@@ -169,8 +174,8 @@ def main():
             # Table header columns
             col0_header = "subnet"
             col1_header = "net id"
-            col2_header = "first"
-            col3_header = "last"
+            col2_header = "first ip"
+            col3_header = "last ip"
 
             # Determine column widths
             max_idx_len = len(col0_header)
@@ -207,6 +212,7 @@ def main():
 
             # Print Table
             print(f"{col0_header.ljust(max_idx_len)} | {col1_header.ljust(max_net_len)} | {col2_header.ljust(max_first_len)} | {col3_header.ljust(max_last_len)}")
+            print(f"{'-' * max_idx_len} | {'-' * max_net_len} | {'-' * max_first_len} | {'-' * max_last_len}")
             if truncate_table:
                 for row in rows[:2]:
                     print(f"{row[0].ljust(max_idx_len)} | {row[1].ljust(max_net_len)} | {row[2].ljust(max_first_len)} | {row[3].ljust(max_last_len)}")
